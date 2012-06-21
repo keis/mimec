@@ -44,6 +44,34 @@ class MailboxList:
             self.scan_directory(s)
 
 
+class MailList:
+    def __init__(self, storage):
+        self._storage = storage
+        self.mailbox = None
+
+    def __len__(self):
+        return len(self._storage)
+
+    def load_mailbox(self, path):
+        import threader.adapt
+        add = self._storage.append
+
+        def copy(messages, iter):
+            for m in messages:
+                citer = add(iter, [m.message.subject or m.message.id])
+                copy(m._children, citer)
+
+        logger.info('loading mailbox: %s', path)
+        self.mailbox = mailbox.Maildir(path, create=False)
+        self._storage.clear()
+        logger.info('threading %s messages', len(self.mailbox))
+        messages = threader.thread(threader.adapt.read_maildir(self.mailbox))
+        logger.info('done threading')
+        copy(
+            messages,
+            None
+        )
+
 class Post:
     ui = 'ui/post.glade'
     state_path = os.path.join(xdg.config_home, 'post', 'state')
@@ -57,7 +85,7 @@ class Post:
             mailbox_search
         )
         self.mailbox_list = builder.get_object('mailbox-list')
-        self.mail = builder.get_object('mail')
+        self.mail = MailList(builder.get_object('mail'))
         self.window = builder.get_object('post-main-window')
         self.show_all = self.window.show_all
 
@@ -89,7 +117,7 @@ class Post:
     def init(self):
         if 'mailbox' in self.state:
             self.mailbox_list.hide()
-            self.select_mailbox(self.state['mailbox'])
+            self.mail.load_mailbox(self.state['mailbox'])
         else:
             self.mailboxes.scan()
             self.populate_mailboxes()
@@ -106,29 +134,12 @@ class Post:
         if len(self.mailboxes) == 0:
             self.mailboxes.scan()
 
-    def select_mailbox(self, path):
-        import threader.adapt
-        model = self.mail
-
-        def copy(messages, iter):
-            for m in messages:
-                print('message', m.message.subject, iter)
-                citer = model.append(iter, [m.message.subject or m.message.id])
-                copy(m._children, citer)
-
-        logger.info('selecting mailbox: %s', path)
-        self.state['mailbox'] = path
-        maildir = mailbox.Maildir(path, create=False)
-        messages = list(threader.adapt.read_maildir(maildir))
-        messages = threader.thread(messages)
-        model.clear()
-        copy(messages, None)
-
     def selection_changed(self, selector):
         store, iter = selector.get_selected()
         row = store[iter]
         mailbox = row[1]
-        self.select_mailbox(mailbox)
+        self.mail.load_mailbox(mailbox)
+        self.state['mailbox'] = mailbox
 
 if __name__ == '__main__':
     import argparse
