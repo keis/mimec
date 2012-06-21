@@ -18,6 +18,32 @@ def defer(fun, *args, **kwargs):
     GObject.idle_add(_wrap)
 
 
+class MailboxList:
+    def __init__(self, storage, search):
+        self._storage = storage
+        self._search = search
+
+    def __len__(self):
+        return len(self._storage)
+
+    def scan_directory(self, s):
+        add = self._storage.append
+        miter = add(None, [os.path.split(s)[-1], None])
+        for path, dirnames, files in os.walk(s):
+            try:
+                maildir = mailbox.Maildir(path, create=False)
+            except OSError as e:
+                continue
+
+            del dirnames[:]
+            name = os.path.split(path)[-1]
+            add(miter, [name, path])
+
+    def scan(self):
+        for s in self._search:
+            self.scan_directory(s)
+
+
 class Post:
     ui = 'ui/post.glade'
     state_path = os.path.join(xdg.config_home, 'post', 'state')
@@ -26,7 +52,10 @@ class Post:
         self.mailbox_search = mailbox_search
         builder = Gtk.Builder()
         builder.add_from_file(self.ui)
-        self.mailboxes = builder.get_object('mailboxes')
+        self.mailboxes = MailboxList(
+            builder.get_object('mailboxes'),
+            mailbox_search
+        )
         self.mailbox_list = builder.get_object('mailbox-list')
         self.mail = builder.get_object('mail')
         self.window = builder.get_object('post-main-window')
@@ -62,6 +91,7 @@ class Post:
             self.mailbox_list.hide()
             self.select_mailbox(self.state['mailbox'])
         else:
+            self.mailboxes.scan()
             self.populate_mailboxes()
 
     def quit(self, _window):
@@ -71,24 +101,10 @@ class Post:
     def toggle_mailbox_list(self):
         self.mailbox_list.set_visible(not self.mailbox_list.get_visible())
 
-    def populate_mailboxes(self):
-        model = self.mailboxes
-        for s in self.mailbox_search:
-            miter = model.append(None, [os.path.split(s)[-1], None])
-            for path, dirnames, files in os.walk(s):
-                try:
-                    maildir = mailbox.Maildir(path, create=False)
-                except OSError as e:
-                    continue
-
-                del dirnames[:]
-                name = os.path.split(path)[-1]
-                model.append(miter, [name, path])
-
     def mailbox_button_clicked(self, button):
         self.toggle_mailbox_list()
         if len(self.mailboxes) == 0:
-            self.populate_mailboxes()
+            self.mailboxes.scan()
 
     def select_mailbox(self, path):
         import threader.adapt
