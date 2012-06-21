@@ -26,12 +26,21 @@ class Post:
         self.mailbox_search = mailbox_search
         builder = Gtk.Builder()
         builder.add_from_file(self.ui)
-        builder.connect_signals(self)
         self.mailboxes = builder.get_object('mailboxes')
         self.mailbox_list = builder.get_object('mailbox-list')
         self.mail = builder.get_object('mail')
         self.window = builder.get_object('post-main-window')
         self.show_all = self.window.show_all
+
+        builder.get_object('post-main-window').connect(
+            'destroy', self.quit
+        )
+        builder.get_object('select-mailbox').connect(
+            'clicked', self.mailbox_button_clicked
+        )
+        builder.get_object('mailbox-selection').connect(
+            'changed', self.selection_changed
+        )
 
     def load_state(self):
         try:

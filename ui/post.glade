@@ -19,7 +19,6 @@
     <property name="can_focus">False</property>
     <property name="default_width">600</property>
     <property name="default_height">500</property>
-    <signal name="destroy" handler="quit" swapped="no"/>
     <child>
       <object class="GtkVBox" id="vbox1">
         <property name="visible">True</property>
@@ -29,13 +28,12 @@
             <property name="visible">True</property>
             <property name="can_focus">False</property>
             <child>
-              <object class="GtkButton" id="mailbo">
+              <object class="GtkButton" id="select-mailbox">
                 <property name="label" translatable="yes">mailbox</property>
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
                 <property name="use_action_appearance">False</property>
-                <signal name="clicked" handler="mailbox_button_clicked" swapped="no"/>
               </object>
               <packing>
                 <property name="expand">False</property>
@@ -71,9 +69,7 @@
                 <property name="can_focus">True</property>
                 <property name="model">mailboxes</property>
                 <child internal-child="selection">
-                  <object class="GtkTreeSelection" id="treeview-selection1">
-                    <signal name="changed" handler="selection_changed" swapped="no"/>
-                  </object>
+                  <object class="GtkTreeSelection" id="mailbox-selection"/>
                 </child>
                 <child>
                   <object class="GtkTreeViewColumn" id="mailbox">
