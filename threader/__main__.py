@@ -3,7 +3,6 @@ def main():
 	testbox = '/home/david.keijser/Mail/gmail/INBOX'
 
 	import mailbox
-	import pprint
 	from .adapt import read_maildir
 	from . import thread
 	maildir = mailbox.Maildir(testbox, create=False)

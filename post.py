@@ -7,9 +7,11 @@ import xdg
 import logging
 import mcache
 
-
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger('post')
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(levelname)s %(asctime)-15s %(message)s [%(funcName)s]'
+)
+logger = logging.getLogger(__name__)
 
 
 def defer(fun, *args, **kwargs):
@@ -32,8 +34,8 @@ class MailboxList:
         miter = add(None, [os.path.split(s)[-1], None])
         for path, dirnames, files in os.walk(s):
             try:
-                maildir = mailbox.Maildir(path, create=False)
-            except OSError as e:
+                mailbox.Maildir(path, create=False)
+            except OSError:
                 continue
 
             del dirnames[:]
@@ -112,7 +114,7 @@ class Post:
         try:
             with open(self.state_path, 'r') as cfg:
                 self.state = json.loads(cfg.read())
-        except IOError as e:
+        except IOError:
             self.state = {}
             logger.info('could not open state file')
 
@@ -120,7 +122,7 @@ class Post:
         try:
             with open(self.state_path, 'w') as cfg:
                 cfg.write(json.dumps(self.state))
-        except IOError as e:
+        except IOError:
             logger.info('could not open state file')
 
     def init(self):
