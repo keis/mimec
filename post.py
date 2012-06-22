@@ -5,6 +5,7 @@ import mailbox
 import json
 import xdg
 import logging
+import mcache
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -62,15 +63,23 @@ class MailList:
                 copy(m._children, citer)
 
         logger.info('loading mailbox: %s', path)
-        self.mailbox = mailbox.Maildir(path, create=False)
+        cache = os.path.join(xdg.cache_home, 'post', 'header_cache')
+        self.mailbox = mcache.HeaderCached(path, create=False, cache=cache)
+        headers = self.mailbox.header_cache
+        try:
+            headers.load()
+        except:
+            logger.warn('failed to load cache', exc_info=True)
         self._storage.clear()
         logger.info('threading %s messages', len(self.mailbox))
-        messages = threader.thread(threader.adapt.read_maildir(self.mailbox))
+        messages = threader.thread(threader.adapt.read_maildir(headers))
+        messages = list(messages)
         logger.info('done threading')
         copy(
-            messages,
+            messages[:100],
             None
         )
+        headers.save()
 
 class Post:
     ui = 'ui/post.glade'
