@@ -32,15 +32,15 @@ class MailboxList:
     def scan_directory(self, s):
         add = self._storage.append
         miter = add(None, [os.path.split(s)[-1], None])
+        logger.info('scanning %s for mailboxes', s)
         for path, dirnames, files in os.walk(s):
-            try:
-                mailbox.Maildir(path, create=False)
-            except OSError:
+            if not os.path.exists(os.path.join(path, 'cur')):
                 continue
 
             del dirnames[:]
             name = os.path.split(path)[-1]
             add(miter, [name, path])
+        logger.info('done scanning %s', s)
 
     def scan(self):
         for s in self._search:
@@ -95,7 +95,7 @@ class Post:
             builder.get_object('mailboxes'),
             mailbox_search
         )
-        self.mailbox_list = builder.get_object('mailbox-list')
+        self.mailbox_pane = builder.get_object('mailbox-pane')
         self.mail = MailList(builder.get_object('mail'))
         self.window = builder.get_object('post-main-window')
         self.show_all = self.window.show_all
@@ -127,8 +127,8 @@ class Post:
 
     def init(self):
         if 'mailbox' in self.state:
-            self.mailbox_list.hide()
-            self.mail.load_mailbox(self.state['mailbox'])
+            self.mailbox_pane.hide()
+            defer(self.mail.load_mailbox, self.state['mailbox'])
         else:
             self.mailboxes.scan()
             self.populate_mailboxes()
@@ -138,7 +138,7 @@ class Post:
         Gtk.main_quit()
 
     def toggle_mailbox_list(self):
-        self.mailbox_list.set_visible(not self.mailbox_list.get_visible())
+        self.mailbox_pane.set_visible(not self.mailbox_pane.get_visible())
 
     def mailbox_button_clicked(self, button):
         self.toggle_mailbox_list()
@@ -149,8 +149,9 @@ class Post:
         store, iter = selector.get_selected()
         row = store[iter]
         mailbox = row[1]
-        self.mail.load_mailbox(mailbox)
-        self.state['mailbox'] = mailbox
+        if mailbox is not None:
+            self.mail.load_mailbox(mailbox)
+            self.state['mailbox'] = mailbox
 
 if __name__ == '__main__':
     import argparse

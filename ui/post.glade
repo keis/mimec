@@ -65,20 +65,27 @@
             <property name="visible">True</property>
             <property name="can_focus">True</property>
             <child>
-              <object class="GtkTreeView" id="mailbox-list">
+              <object class="GtkScrolledWindow" id="mailbox-pane">
+                <property name="visible">True</property>
                 <property name="can_focus">True</property>
-                <property name="model">mailboxes</property>
-                <child internal-child="selection">
-                  <object class="GtkTreeSelection" id="mailbox-selection"/>
-                </child>
+                <property name="shadow_type">in</property>
                 <child>
-                  <object class="GtkTreeViewColumn" id="mailbox">
-                    <property name="title" translatable="yes">mailbox</property>
+                  <object class="GtkTreeView" id="mailbox-list">
+                    <property name="can_focus">True</property>
+                    <property name="model">mailboxes</property>
+                    <child internal-child="selection">
+                      <object class="GtkTreeSelection" id="mailbox-selection"/>
+                    </child>
                     <child>
-                      <object class="GtkCellRendererText" id="titlerenderer"/>
-                      <attributes>
-                        <attribute name="text">0</attribute>
-                      </attributes>
+                      <object class="GtkTreeViewColumn" id="mailbox">
+                        <property name="title" translatable="yes">mailbox</property>
+                        <child>
+                          <object class="GtkCellRendererText" id="titlerenderer"/>
+                          <attributes>
+                            <attribute name="text">0</attribute>
+                          </attributes>
+                        </child>
+                      </object>
                     </child>
                   </object>
                 </child>
@@ -89,21 +96,28 @@
               </packing>
             </child>
             <child>
-              <object class="GtkTreeView" id="mai">
+              <object class="GtkScrolledWindow" id="message-pane">
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
-                <property name="model">mail</property>
-                <child internal-child="selection">
-                  <object class="GtkTreeSelection" id="treeview-selection2"/>
-                </child>
+                <property name="shadow_type">in</property>
                 <child>
-                  <object class="GtkTreeViewColumn" id="subject">
-                    <property name="title" translatable="yes">subject</property>
+                  <object class="GtkTreeView" id="mail-view">
+                    <property name="visible">True</property>
+                    <property name="can_focus">True</property>
+                    <property name="model">mail</property>
+                    <child internal-child="selection">
+                      <object class="GtkTreeSelection" id="message-selection"/>
+                    </child>
                     <child>
-                      <object class="GtkCellRendererText" id="subject-renderer"/>
-                      <attributes>
-                        <attribute name="text">0</attribute>
-                      </attributes>
+                      <object class="GtkTreeViewColumn" id="subject">
+                        <property name="title" translatable="yes">subject</property>
+                        <child>
+                          <object class="GtkCellRendererText" id="subject-renderer"/>
+                          <attributes>
+                            <attribute name="text">0</attribute>
+                          </attributes>
+                        </child>
+                      </object>
                     </child>
                   </object>
                 </child>
