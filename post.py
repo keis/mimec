@@ -83,6 +83,29 @@ class MailList:
         )
         headers.save()
 
+
+class MailboxesWidget:
+    def __init__(self, mailboxes, button, list):
+        self.mailboxes = mailboxes
+        self._button = button
+        self._list = list
+
+        self._button.connect('clicked', self._button_clicked)
+
+    def _button_clicked(self, w):
+        on = self.toggle()
+        if on and len(self.mailboxes) == 0:
+            self.mailboxes.scan()
+
+    def toggle(self):
+        state = not self._list.get_visible()
+        self._list.set_visible(state)
+        return state
+
+    def hide(self):
+        self._list.hide()
+
+
 class Post:
     ui = 'ui/post.glade'
     state_path = os.path.join(xdg.config_home, 'post', 'state')
@@ -91,20 +114,21 @@ class Post:
         self.mailbox_search = mailbox_search
         builder = Gtk.Builder()
         builder.add_from_file(self.ui)
+
         self.mailboxes = MailboxList(
             builder.get_object('mailboxes'),
             mailbox_search
         )
-        self.mailbox_pane = builder.get_object('mailbox-pane')
+        self.mailboxeswidget = MailboxesWidget(
+            self.mailboxes,
+            builder.get_object('select-mailbox'),
+            builder.get_object('mailbox-pane')
+        )
         self.mail = MailList(builder.get_object('mail'))
-        self.window = builder.get_object('post-main-window')
-        self.show_all = self.window.show_all
+        self.show_all = builder.get_object('post-main-window').show_all
 
         builder.get_object('post-main-window').connect(
             'destroy', self.quit
-        )
-        builder.get_object('select-mailbox').connect(
-            'clicked', self.mailbox_button_clicked
         )
         builder.get_object('mailbox-selection').connect(
             'changed', self.selection_changed
@@ -127,23 +151,14 @@ class Post:
 
     def init(self):
         if 'mailbox' in self.state:
-            self.mailbox_pane.hide()
+            self.mailboxeswidget.hide()
             defer(self.mail.load_mailbox, self.state['mailbox'])
         else:
             self.mailboxes.scan()
-            self.populate_mailboxes()
 
     def quit(self, _window):
         self.save_state()
         Gtk.main_quit()
-
-    def toggle_mailbox_list(self):
-        self.mailbox_pane.set_visible(not self.mailbox_pane.get_visible())
-
-    def mailbox_button_clicked(self, button):
-        self.toggle_mailbox_list()
-        if len(self.mailboxes) == 0:
-            self.mailboxes.scan()
 
     def selection_changed(self, selector):
         store, iter = selector.get_selected()
