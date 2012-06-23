@@ -6,6 +6,7 @@ import json
 import xdg
 import logging
 import mcache
+from sig import signal
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -85,17 +86,28 @@ class MailList:
 
 
 class MailboxesWidget:
-    def __init__(self, mailboxes, button, list):
+    selection_changed = signal()
+
+    def __init__(self, mailboxes, button, list, selection):
         self.mailboxes = mailboxes
         self._button = button
         self._list = list
+        self._selection = selection
 
         self._button.connect('clicked', self._button_clicked)
+        self._selection.connect('changed', self._selection_changed)
 
     def _button_clicked(self, w):
         on = self.toggle()
         if on and len(self.mailboxes) == 0:
             self.mailboxes.scan()
+
+    def _selection_changed(self, selector):
+        store, iter = selector.get_selected()
+        row = store[iter]
+        mailbox = row[1]
+        if mailbox is not None:
+            self.selection_changed(mailbox=mailbox)
 
     def toggle(self):
         state = not self._list.get_visible()
@@ -122,16 +134,15 @@ class Post:
         self.mailboxeswidget = MailboxesWidget(
             self.mailboxes,
             builder.get_object('select-mailbox'),
-            builder.get_object('mailbox-pane')
+            builder.get_object('mailbox-pane'),
+            builder.get_object('mailbox-selection')
         )
+        self.mailboxeswidget.selection_changed.subscribe(self._change_mailbox)
         self.mail = MailList(builder.get_object('mail'))
         self.show_all = builder.get_object('post-main-window').show_all
 
         builder.get_object('post-main-window').connect(
             'destroy', self.quit
-        )
-        builder.get_object('mailbox-selection').connect(
-            'changed', self.selection_changed
         )
 
     def load_state(self):
@@ -160,13 +171,9 @@ class Post:
         self.save_state()
         Gtk.main_quit()
 
-    def selection_changed(self, selector):
-        store, iter = selector.get_selected()
-        row = store[iter]
-        mailbox = row[1]
-        if mailbox is not None:
-            self.mail.load_mailbox(mailbox)
-            self.state['mailbox'] = mailbox
+    def _change_mailbox(self, mailbox=None):
+        self.mail.load_mailbox(mailbox)
+        self.state['mailbox'] = mailbox
 
 if __name__ == '__main__':
     import argparse
