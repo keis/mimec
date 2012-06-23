@@ -22,16 +22,14 @@ def defer(fun, *args, **kwargs):
     GObject.idle_add(_wrap)
 
 
-class MailboxList:
-    def __init__(self, storage, search):
-        self._storage = storage
-        self._search = search
+class MailboxList(Gtk.TreeStore, Gtk.Buildable):
+    __gtype_name__ = 'MailboxList'
 
-    def __len__(self):
-        return len(self._storage)
+    def __init__(self):
+        self.search = []
 
     def scan_directory(self, s):
-        add = self._storage.append
+        add = self.append
         miter = add(None, [os.path.split(s)[-1], None])
         logger.info('scanning %s for mailboxes', s)
         for path, dirnames, files in os.walk(s):
@@ -44,21 +42,19 @@ class MailboxList:
         logger.info('done scanning %s', s)
 
     def scan(self):
-        for s in self._search:
+        for s in self.search:
             self.scan_directory(s)
 
 
-class MailList:
-    def __init__(self, storage):
-        self._storage = storage
-        self.mailbox = None
+class MailList(Gtk.TreeStore, Gtk.Buildable):
+    __gtype_name__ = 'MailList'
 
-    def __len__(self):
-        return len(self._storage)
+    def __init__(self):
+        self.mailbox = None
 
     def load_mailbox(self, path):
         import threader.adapt
-        add = self._storage.append
+        add = self.append
 
         def copy(messages, iter):
             for m in messages:
@@ -73,7 +69,7 @@ class MailList:
             headers.load()
         except:
             logger.warn('failed to load cache', exc_info=True)
-        self._storage.clear()
+        self.clear()
         logger.info('threading %s messages', len(self.mailbox))
         messages = threader.thread(threader.adapt.read_maildir(headers))
         messages = list(messages)
@@ -127,18 +123,15 @@ class Post:
         builder = Gtk.Builder()
         builder.add_from_file(self.ui)
 
-        self.mailboxes = MailboxList(
-            builder.get_object('mailboxes'),
-            mailbox_search
-        )
+        builder.get_object('mailboxes').search = mailbox_search
         self.mailboxeswidget = MailboxesWidget(
-            self.mailboxes,
+            builder.get_object('mailboxes'),
             builder.get_object('select-mailbox'),
             builder.get_object('mailbox-pane'),
             builder.get_object('mailbox-selection')
         )
         self.mailboxeswidget.selection_changed.subscribe(self._change_mailbox)
-        self.mail = MailList(builder.get_object('mail'))
+        self.mail = builder.get_object('mail')
         self.show_all = builder.get_object('post-main-window').show_all
 
         builder.get_object('post-main-window').connect(

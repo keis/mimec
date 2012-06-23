@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
   <!-- interface-requires gtk+ 3.0 -->
-  <object class="GtkTreeStore" id="mail">
+  <object class="MailList" id="mail">
     <columns>
       <!-- column-name subject -->
       <column type="gchararray"/>
     </columns>
   </object>
-  <object class="GtkTreeStore" id="mailboxes">
+  <object class="MailboxList" id="mailboxes">
     <columns>
       <!-- column-name title -->
       <column type="gchararray"/>
