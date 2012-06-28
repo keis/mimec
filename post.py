@@ -81,17 +81,17 @@ class MailList(Gtk.TreeStore, Gtk.Buildable):
         headers.save()
 
 
-class MailboxesWidget:
+class MailboxesWidget(GObject.GObject, Gtk.Buildable):
+    __gtype_name__ = 'MailboxesWidget'
     selection_changed = signal()
+    mailboxes = GObject.property(type=MailboxList)
+    button = GObject.property(type=Gtk.Button)
+    list = GObject.property(type=Gtk.Widget)
+    selection = GObject.property(type=Gtk.TreeSelection)
 
-    def __init__(self, mailboxes, button, list, selection):
-        self.mailboxes = mailboxes
-        self._button = button
-        self._list = list
-        self._selection = selection
-
-        self._button.connect('clicked', self._button_clicked)
-        self._selection.connect('changed', self._selection_changed)
+    def do_parser_finished(self, builder):
+        self.button.connect('clicked', self._button_clicked)
+        self.selection.connect('changed', self._selection_changed)
 
     def _button_clicked(self, w):
         on = self.toggle()
@@ -106,12 +106,12 @@ class MailboxesWidget:
             self.selection_changed(mailbox=mailbox)
 
     def toggle(self):
-        state = not self._list.get_visible()
-        self._list.set_visible(state)
+        state = not self.list.get_visible()
+        self.list.set_visible(state)
         return state
 
     def hide(self):
-        self._list.hide()
+        self.list.hide()
 
 
 class Post:
@@ -124,12 +124,7 @@ class Post:
         builder.add_from_file(self.ui)
 
         builder.get_object('mailboxes').search = mailbox_search
-        self.mailboxeswidget = MailboxesWidget(
-            builder.get_object('mailboxes'),
-            builder.get_object('select-mailbox'),
-            builder.get_object('mailbox-pane'),
-            builder.get_object('mailbox-selection')
-        )
+        self.mailboxeswidget = builder.get_object('mailboxes-widget')
         self.mailboxeswidget.selection_changed.subscribe(self._change_mailbox)
         self.mail = builder.get_object('mail')
         self.show_all = builder.get_object('post-main-window').show_all
@@ -171,10 +166,13 @@ class Post:
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('mailbox', nargs='+')
+    parser.add_argument('mailbox', nargs='*')
     args = parser.parse_args()
 
-    p = Post(args.mailbox)
+    with open(os.path.join(xdg.config_home, 'post', 'config')) as f:
+        config = json.loads(f.read())
+
+    p = Post(args.mailbox or config['mailboxes'])
     p.load_state()
     p.show_all()
     defer(p.init)

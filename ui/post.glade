@@ -1,6 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
   <!-- interface-requires gtk+ 3.0 -->
+  <object class="MailboxesWidget" id="mailboxes-widget">
+    <property name="mailboxes">mailboxes</property>
+    <property name="button">select-mailbox</property>
+    <property name="list">mailbox-pane</property>
+    <property name="selection">mailbox-selection</property>
+  </object>
   <object class="MailList" id="mail">
     <columns>
       <!-- column-name subject -->
