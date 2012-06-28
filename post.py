@@ -8,6 +8,8 @@ import logging
 import mcache
 from sig import signal
 
+XDG = xdg.Context('post')
+
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(levelname)s %(asctime)-15s %(message)s [%(funcName)s]'
@@ -62,7 +64,7 @@ class MailList(Gtk.TreeStore, Gtk.Buildable):
                 copy(m._children, citer)
 
         logger.info('loading mailbox: %s', path)
-        cache = os.path.join(xdg.cache_home, 'post', 'header_cache')
+        cache = XDG.cache('header_cache')
         self.mailbox = mcache.HeaderCached(path, create=False, cache=cache)
         headers = self.mailbox.header_cache
         try:
@@ -116,7 +118,7 @@ class MailboxesWidget(GObject.GObject, Gtk.Buildable):
 
 class Post:
     ui = 'ui/post.glade'
-    state_path = os.path.join(xdg.config_home, 'post', 'state')
+    state_path = XDG.config('state')
 
     def __init__(self, mailbox_search):
         self.mailbox_search = mailbox_search
@@ -169,7 +171,7 @@ if __name__ == '__main__':
     parser.add_argument('mailbox', nargs='*')
     args = parser.parse_args()
 
-    with open(os.path.join(xdg.config_home, 'post', 'config')) as f:
+    with open(XDG.config('config')) as f:
         config = json.loads(f.read())
 
     p = Post(args.mailbox or config['mailboxes'])
