@@ -8,6 +8,7 @@ from email.generator import Generator
 from email.message import Message
 import email.utils
 import mimetypes
+import base64
 
 logger = logging.getLogger('mime-compiler')
 
@@ -79,7 +80,7 @@ class MimeCompiler(object):
     def add_cc(self, recipents):
         self._add_recipents('Cc', recipents)
 
-    def attach(self, name, data, mime=None):
+    def attach(self, path, data, mime=None, disposition='attachment'):
         self._message['Content-Type'] = 'multipart/mixed'
 
         if isinstance(data, Message):
@@ -87,13 +88,26 @@ class MimeCompiler(object):
             return
 
         if mime is None:
-            mime, enc = mimetypes.guess_type(name)
+            mime, enc = mimetypes.guess_type(path)
             mime = mime or 'text/plain'
 
-        logger.debug('attaching %r as %s', name, mime)
+        name = os.path.basename(path)
+
+        logger.debug('attaching %r as %s', path, mime)
         submessage = Message()
         submessage['Content-Type'] = mime
-        submessage.set_payload(data)
+
+        if disposition == 'attachment' or disposition is None and mime.startswith('application/'):
+            submessage['Content-Disposition'] = 'attachment; filename="%s"' % name
+
+        try:
+            ascii = data.decode('ASCII')
+            submessage.set_payload(ascii)
+        except UnicodeDecodeError:
+            enc = base64.b64encode(data).decode('ASCII')
+            submessage['Content-Transfer-Encoding'] = 'base64'
+            submessage.set_payload(enc)
+
         self._message.attach(submessage)
         self._last_part = submessage
 
@@ -102,13 +116,16 @@ def read_file(path):
     if path == '-':
         file = sys.stdin
     else:
-        file = open(path)
+        file = open(path, mode='rb')
 
     parser = FeedParser()
     logger.debug('loading %r', file)
     with file as f:
         data = f.read()
-        parser.feed(data)
+        try:
+            parser.feed(data.decode('utf-8'))
+        except UnicodeDecodeError:
+            return data
     message = parser.close()
     if len(message._headers) == 0:
         return data
@@ -140,7 +157,7 @@ def main():
         if isinstance(m, Message):
             message = m
         else:
-            loaded_parts.append((args.message, m))
+            loaded_parts.append((args.message, m, None))
 
     mimec = MimeCompiler(message)
 
@@ -157,14 +174,14 @@ def main():
         mimec.add_cc(args.cc)
 
     for part in parts:
-        loaded_parts.append((part, read_file(part)))
+        loaded_parts.append((part, read_file(part), None))
 
     if args.attach:
         for att in args.attach:
             loaded_parts.append((att, read_file(att)))
 
-    for part, data in loaded_parts:
-        mimec.attach(part, data=data)
+    for part, data, dis in loaded_parts:
+        mimec.attach(part, data=data, disposition=dis)
 
     message = mimec.close()
 
