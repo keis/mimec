@@ -80,8 +80,18 @@ class MimeCompiler(object):
     def add_cc(self, recipents):
         self._add_recipents('Cc', recipents)
 
-    def attach(self, path, data, mime=None, disposition='attachment'):
+    def lift(self):
+        '''Lift the message to mime multipart'''
+
+        old = Message()
+        old.set_payload(self._message._payload)
+        old['Content-Type'] = self._message['Content-Type']
+        self._message._payload = [old]
         self._message['Content-Type'] = 'multipart/mixed'
+
+    def attach(self, path, data, mime=None, disposition='attachment'):
+        if not self._message.is_multipart():
+            self.lift()
 
         if isinstance(data, Message):
             self._message.attach(data)
@@ -119,7 +129,7 @@ def read_file(path):
         file = open(path, mode='rb')
 
     parser = FeedParser()
-    logger.debug('loading %r', file)
+    logger.debug('loading %r', file.name)
     with file as f:
         data = f.read()
         try:
@@ -155,6 +165,7 @@ def main():
     if args.message:
         m = read_file(args.message)
         if isinstance(m, Message):
+            logger.debug('using %r as root message', m)
             message = m
         else:
             loaded_parts.append((args.message, m, None))
