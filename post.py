@@ -64,9 +64,10 @@ class MailList(Gtk.TreeStore, Gtk.Buildable):
                 copy(m._children, citer)
 
         logger.info('loading mailbox: %s', path)
-        cache = XDG.cache('header_cache')
-        self.mailbox = mcache.HeaderCached(path, create=False, cache=cache)
-        headers = self.mailbox.header_cache
+        cache = mcache.Cache(XDG.cache('header_cache'))
+        self.mailbox = mcache.HeaderCached(path, create=False)
+        self.mailbox.header_cache = cache
+        headers = mcache.HeaderCache(self.mailbox, cache)
         try:
             headers.load()
         except:
