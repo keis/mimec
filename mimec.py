@@ -85,7 +85,7 @@ class MimeCompiler(object):
 
         old = Message()
         old.set_payload(self._message._payload)
-        old['Content-Type'] = self._message['Content-Type']
+        old['Content-Type'] = self._message['Content-Type'] or 'text/plain'
         self._message._payload = [old]
         self._message['Content-Type'] = 'multipart/mixed'
 
@@ -107,7 +107,10 @@ class MimeCompiler(object):
         submessage = Message()
         submessage['Content-Type'] = mime
 
-        if disposition == 'attachment' or disposition is None and mime.startswith('application/'):
+        binary = mime.startswith('application/') or mime.startswith('image/')
+
+        if disposition == 'attachment' or disposition is None and binary:
+            logger.debug('attachment with name %s [%r]', name, path)
             submessage['Content-Disposition'] = 'attachment; filename="%s"' % name
 
         try:
@@ -189,7 +192,7 @@ def main():
 
     if args.attach:
         for att in args.attach:
-            loaded_parts.append((att, read_file(att)))
+            loaded_parts.append((att, read_file(att), 'attachment'))
 
     for part, data, dis in loaded_parts:
         mimec.attach(part, data=data, disposition=dis)
