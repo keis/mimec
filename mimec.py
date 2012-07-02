@@ -3,6 +3,7 @@
 import os
 import sys
 import logging
+import re
 from email.parser import FeedParser
 from email.generator import Generator
 from email.message import Message
@@ -107,7 +108,7 @@ class MimeCompiler(object):
         submessage = Message()
         submessage['Content-Type'] = mime
 
-        binary = mime.startswith('application/') or mime.startswith('image/')
+        binary = not re.match('text/', mime)
 
         if disposition == 'attachment' or disposition is None and binary:
             logger.debug('attachment with name %s [%r]', name, path)
