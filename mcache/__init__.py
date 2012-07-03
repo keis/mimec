@@ -1,6 +1,6 @@
-import mailbox
 import os.path
 import logging
+import mailbox
 
 try:
     import cPickle as pickle
@@ -61,7 +61,7 @@ class Cache(object):
             }, f)
 
 
-class HeaderCache(object):
+class StubFactory(object):
     def __init__(self, mailbox, cache):
         self._mailbox = mailbox
         self._cache = cache
@@ -97,15 +97,15 @@ class HeaderCache(object):
         self._cache.save()
 
 
-class HeaderCached(mailbox.Maildir):
+class HeaderUpdaterMixin(object):
     def _update_cache(self, key, message):
         self.header_cache[('maildir', key)] = message
 
     def __setitem__(self, key, message):
-        super(HeaderCached, self).__getitem__(key, message)
+        super(HeaderUpdaterMixin, self).__getitem__(key, message)
         self._update_cache(key, message)
 
     def __getitem__(self, key):
-        message = super(HeaderCached, self).__getitem__(key)
+        message = super(HeaderUpdaterMixin, self).__getitem__(key)
         self._update_cache(key, message)
         return message

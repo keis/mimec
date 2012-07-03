@@ -17,6 +17,11 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+
+class Maildir(mcache.HeaderUpdaterMixin, mailbox.Maildir):
+    header_cache = mcache.Cache(XDG.cache('header_cache'))
+
+
 def defer(fun, *args, **kwargs):
     def _wrap():
         fun(*args, **kwargs)
@@ -64,10 +69,8 @@ class MailList(Gtk.TreeStore, Gtk.Buildable):
                 copy(m._children, citer)
 
         logger.info('loading mailbox: %s', path)
-        cache = mcache.Cache(XDG.cache('header_cache'))
-        self.mailbox = mcache.HeaderCached(path, create=False)
-        self.mailbox.header_cache = cache
-        headers = mcache.HeaderCache(self.mailbox, cache)
+        self.mailbox = Maildir(path, create=False)
+        headers = mcache.StubFactory(self.mailbox, self.mailbox.header_cache)
         try:
             headers.load()
         except:
