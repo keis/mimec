@@ -8,16 +8,19 @@
     <property name="selection">mailbox-selection</property>
   </object>
   <object class="MailList" id="mail">
+    <property name="selection">message-selection</property>
     <columns>
+      <!-- column-name message-id -->
+      <column type="gchararray"/>
       <!-- column-name subject -->
       <column type="gchararray"/>
     </columns>
   </object>
   <object class="MailboxList" id="mailboxes">
     <columns>
-      <!-- column-name title -->
-      <column type="gchararray"/>
       <!-- column-name mailbox -->
+      <column type="gchararray"/>
+      <!-- column-name title -->
       <column type="gchararray"/>
     </columns>
   </object>
@@ -88,7 +91,7 @@
                         <child>
                           <object class="GtkCellRendererText" id="titlerenderer"/>
                           <attributes>
-                            <attribute name="text">0</attribute>
+                            <attribute name="text">1</attribute>
                           </attributes>
                         </child>
                       </object>
@@ -120,7 +123,7 @@
                         <child>
                           <object class="GtkCellRendererText" id="subject-renderer"/>
                           <attributes>
-                            <attribute name="text">0</attribute>
+                            <attribute name="text">1</attribute>
                           </attributes>
                         </child>
                       </object>

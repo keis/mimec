@@ -17,9 +17,21 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-
 class Maildir(mcache.HeaderUpdaterMixin, mailbox.Maildir):
     header_cache = mcache.Cache(XDG.cache('header_cache'))
+
+
+def load_message(message_id, maildir=None):
+    for spec, key in Maildir.header_cache.lookup(message_id):
+        if spec != 'maildir':
+            continue
+        path, key = key
+        if maildir is None:
+            maildir = Maildir(path, create=False)
+        elif maildir._path != path:
+            continue
+        return maildir[key]
+    raise KeyError('Message not found: %s' % message_id)
 
 
 def defer(fun, *args, **kwargs):
@@ -45,7 +57,7 @@ class MailboxList(Gtk.TreeStore, Gtk.Buildable):
 
             del dirnames[:]
             name = os.path.split(path)[-1]
-            add(miter, [name, path])
+            add(miter, [path, name])
         logger.info('done scanning %s', s)
 
     def scan(self):
@@ -56,8 +68,24 @@ class MailboxList(Gtk.TreeStore, Gtk.Buildable):
 class MailList(Gtk.TreeStore, Gtk.Buildable):
     __gtype_name__ = 'MailList'
 
+    selection = GObject.property(type=Gtk.TreeSelection)
+
     def __init__(self):
         self.mailbox = None
+
+    def do_parser_finished(self, builder):
+        self.selection.connect('changed', self._selection_changed)
+
+    def _selection_changed(self, selector):
+        # PLACEHOLDER
+        store, iter = selector.get_selected()
+        row = store[iter]
+        try:
+            message = load_message(row[0], self.mailbox)
+        except KeyError as e:
+            print(e)
+        else:
+            print('Message from <%s>: %s' % (message['From'], message['Subject']))
 
     def load_mailbox(self, path):
         import threader.adapt
@@ -65,7 +93,10 @@ class MailList(Gtk.TreeStore, Gtk.Buildable):
 
         def copy(messages, iter):
             for m in messages:
-                citer = add(iter, [m.message.subject or m.message.id])
+                citer = add(iter, [
+                    m.message.id,
+                    m.message.subject or m.message.id
+                ])
                 copy(m._children, citer)
 
         logger.info('loading mailbox: %s', path)
