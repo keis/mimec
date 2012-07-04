@@ -65,6 +65,7 @@ class Cache(object):
         if isinstance(key, tuple):
             if len(key) != 2:
                 raise TypeError('Tuple of size 2 expected got %s %r' % (len(key), key))
+            key = tuple(key)
             self._resolve[key] = message_id
             self._index[message_id].add(key)
         elif messageId != key:

@@ -112,7 +112,7 @@ class MailList(Gtk.TreeStore, Gtk.Buildable):
         messages = list(messages)
         logger.info('done threading')
         copy(
-            messages[:100],
+            messages,
             None
         )
         headers.save()
@@ -138,7 +138,7 @@ class MailboxesWidget(GObject.GObject, Gtk.Buildable):
     def _selection_changed(self, selector):
         store, iter = selector.get_selected()
         row = store[iter]
-        mailbox = row[1]
+        mailbox = row[0]
         if mailbox is not None:
             self.selection_changed(mailbox=mailbox)
 
@@ -209,7 +209,7 @@ if __name__ == '__main__':
     with open(XDG.config('config')) as f:
         config = json.loads(f.read())
 
-    p = Post(args.mailbox or config['mailboxes'])
+    p = Post(map(os.path.expanduser, args.mailbox or config['mailboxes']))
     p.load_state()
     p.show_all()
     defer(p.init)
