@@ -8,7 +8,37 @@ import logging
 import mcache
 from sig import signal
 
+
 XDG = xdg.Context('post')
+
+class App:
+    def __init__(self):
+        self.load_config()
+        self.load_state()
+
+    def load_config(self):
+        try:
+            with open(XDG.config('config')) as f:
+                self.config = json.loads(f.read())
+        except IOError:
+            logger.info('could not read config file')
+
+    def load_state(self):
+        try:
+            with open(XDG.config('state'), 'r') as cfg:
+                self.state = json.loads(cfg.read())
+        except IOError:
+            self.state = {}
+            logger.info('could not open state file')
+
+    def save_state(self):
+        try:
+            with open(XDG.config('state'), 'w') as cfg:
+                cfg.write(json.dumps(self.state))
+        except IOError:
+            logger.info('could not open state file')
+
+app = App()
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -107,6 +137,7 @@ class PostWindow(Gtk.Window, Gtk.Buildable):
     __gtype_name__ = 'PostWindow'
 
     message_activated = signal()
+    message_selected = signal()
     mailbox_selected = signal()
 
     messages = GObject.property(type=Gtk.TreeStore)
@@ -117,6 +148,15 @@ class PostWindow(Gtk.Window, Gtk.Buildable):
     mailbox_button = GObject.property(type=Gtk.Button)
     mailbox_list = GObject.property(type=Gtk.Widget)
     mailbox_selection = GObject.property(type=Gtk.TreeSelection)
+
+    def __init__(self):
+        self.mailbox_selected.subscribe(self._change_mailbox)
+        self.message_activated.subscribe(self._open_message)
+        self.message_selected.subscribe(
+            lambda message: print('Message from %s: %s' % (
+                message['From'],
+                message['Subject']
+            )))
 
     def do_parser_finished(self, builder):
         self.message_view.connect(
@@ -134,15 +174,14 @@ class PostWindow(Gtk.Window, Gtk.Buildable):
         self.message_activated(message_id=message_id)
 
     def _message_selection_changed(self, selector):
-        # PLACEHOLDER
         store, iter = selector.get_selected()
         row = store[iter]
         try:
-            message = load_message(row[0], self.mailbox)
+            message = load_message(row[0], self.messages.mailbox)
         except KeyError as e:
-            print(e)
+            logger.warning('Could not read message', exc_info=True)
         else:
-            print('Message from <%s>: %s' % (message['From'], message['Subject']))
+            self.message_selected(message=message)
 
     def _mailbox_button_clicked(self, w):
         on = self.toggle_mailbox_list()
@@ -156,6 +195,13 @@ class PostWindow(Gtk.Window, Gtk.Buildable):
         if mailbox is not None:
             self.mailbox_selected(mailbox=mailbox)
 
+    def _change_mailbox(self, mailbox=None):
+        self.messages.load_mailbox(mailbox)
+        app.state['mailbox'] = mailbox
+
+    def _open_message(self, message_id=None):
+        print("hello %s!" % message_id)
+
     def toggle_mailbox_list(self):
         state = not self.mailbox_list.get_visible()
         self.mailbox_list.set_visible(state)
@@ -167,7 +213,6 @@ class PostWindow(Gtk.Window, Gtk.Buildable):
 
 class Post:
     ui = 'ui/post.glade'
-    state_path = XDG.config('state')
 
     def __init__(self, mailbox_search):
         self.mailbox_search = mailbox_search
@@ -176,8 +221,6 @@ class Post:
 
         builder.get_object('mailboxes').search = mailbox_search
         self.post = builder.get_object('post-main-window')
-        self.post.mailbox_selected.subscribe(self._change_mailbox)
-        self.post.message_activated.subscribe(self._open_message)
         self.messages = builder.get_object('messages')
         self.show_all = self.post.show_all
 
@@ -185,40 +228,16 @@ class Post:
             'destroy', self.quit
         )
 
-    def load_state(self):
-        try:
-            with open(self.state_path, 'r') as cfg:
-                self.state = json.loads(cfg.read())
-        except IOError:
-            self.state = {}
-            logger.info('could not open state file')
-
-    def save_state(self):
-        try:
-            with open(self.state_path, 'w') as cfg:
-                cfg.write(json.dumps(self.state))
-        except IOError:
-            logger.info('could not open state file')
-
     def init(self):
-        if 'mailbox' in self.state:
+        if 'mailbox' in app.state:
             self.post.hide_mailbox_list()
-            defer(self.messages.load_mailbox, self.state['mailbox'])
+            defer(self.messages.load_mailbox, app.state['mailbox'])
         else:
             self.mailboxes.scan()
 
     def quit(self, _window):
-        self.save_state()
+        app.save_state()
         Gtk.main_quit()
-
-    # TODO: part of PostWindow
-    def _change_mailbox(self, mailbox=None):
-        self.messages.load_mailbox(mailbox)
-        self.state['mailbox'] = mailbox
-
-    # TODO: part of PostWindow
-    def _open_message(self, message_id=None):
-        print("hello %s!" % message_id)
 
 if __name__ == '__main__':
     import argparse
@@ -226,11 +245,7 @@ if __name__ == '__main__':
     parser.add_argument('mailbox', nargs='*')
     args = parser.parse_args()
 
-    with open(XDG.config('config')) as f:
-        config = json.loads(f.read())
-
-    p = Post(map(os.path.expanduser, args.mailbox or config['mailboxes']))
-    p.load_state()
+    p = Post(map(os.path.expanduser, args.mailbox or app.config['mailboxes']))
     p.show_all()
     defer(p.init)
     Gtk.main()
