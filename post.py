@@ -61,13 +61,13 @@ class MailboxList(Gtk.TreeStore, Gtk.Buildable):
         logger.info('done scanning %s', s)
 
     def scan(self):
+        self.clear()
         for s in self.search:
             self.scan_directory(s)
 
 
-class MailList(Gtk.TreeStore, Gtk.Buildable):
-    __gtype_name__ = 'MailList'
-
+class MessageList(Gtk.TreeStore, Gtk.Buildable):
+    __gtype_name__ = 'MessageList'
     selection = GObject.property(type=Gtk.TreeSelection)
 
     def __init__(self):
@@ -151,6 +151,21 @@ class MailboxesWidget(GObject.GObject, Gtk.Buildable):
         self.list.hide()
 
 
+class MessageWidget(GObject.GObject, Gtk.Buildable):
+    __gtype_name__ = 'MessageWidget'
+    messages = GObject.property(type=Gtk.TreeStore)
+    message_view = GObject.property(type=Gtk.TreeView)
+    message_activated = signal()
+
+    def do_parser_finished(self, builder):
+        self.message_view.connect('row-activated', self._row_activated)
+
+    def _row_activated(self, treeview, path, col):
+        iter = self.messages.get_iter(path)
+        message_id = self.messages[iter][0]
+        self.message_activated(message_id=message_id)
+
+
 class Post:
     ui = 'ui/post.glade'
     state_path = XDG.config('state')
@@ -163,7 +178,9 @@ class Post:
         builder.get_object('mailboxes').search = mailbox_search
         self.mailboxeswidget = builder.get_object('mailboxes-widget')
         self.mailboxeswidget.selection_changed.subscribe(self._change_mailbox)
-        self.mail = builder.get_object('mail')
+        self.messageswidget = builder.get_object('messages-widget')
+        self.messageswidget.message_activated.subscribe(self._open_message)
+        self.messages = builder.get_object('messages')
         self.show_all = builder.get_object('post-main-window').show_all
 
         builder.get_object('post-main-window').connect(
@@ -188,7 +205,7 @@ class Post:
     def init(self):
         if 'mailbox' in self.state:
             self.mailboxeswidget.hide()
-            defer(self.mail.load_mailbox, self.state['mailbox'])
+            defer(self.messages.load_mailbox, self.state['mailbox'])
         else:
             self.mailboxes.scan()
 
@@ -197,8 +214,11 @@ class Post:
         Gtk.main_quit()
 
     def _change_mailbox(self, mailbox=None):
-        self.mail.load_mailbox(mailbox)
+        self.messages.load_mailbox(mailbox)
         self.state['mailbox'] = mailbox
+
+    def _open_message(self, message_id=None):
+        print("hello %s!" % message_id)
 
 if __name__ == '__main__':
     import argparse

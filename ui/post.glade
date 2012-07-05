@@ -7,7 +7,7 @@
     <property name="list">mailbox-pane</property>
     <property name="selection">mailbox-selection</property>
   </object>
-  <object class="MailList" id="mail">
+  <object class="MessageList" id="messages">
     <property name="selection">message-selection</property>
     <columns>
       <!-- column-name message-id -->
@@ -15,6 +15,10 @@
       <!-- column-name subject -->
       <column type="gchararray"/>
     </columns>
+  </object>
+  <object class="MessageWidget" id="messages-widget">
+    <property name="messages">messages</property>
+    <property name="message-view">message-view</property>
   </object>
   <object class="MailboxList" id="mailboxes">
     <columns>
@@ -110,10 +114,10 @@
                 <property name="can_focus">True</property>
                 <property name="shadow_type">in</property>
                 <child>
-                  <object class="GtkTreeView" id="mail-view">
+                  <object class="GtkTreeView" id="message-view">
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
-                    <property name="model">mail</property>
+                    <property name="model">messages</property>
                     <child internal-child="selection">
                       <object class="GtkTreeSelection" id="message-selection"/>
                     </child>
