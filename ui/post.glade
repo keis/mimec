@@ -1,24 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
   <!-- interface-requires gtk+ 3.0 -->
-  <object class="MailboxesWidget" id="mailboxes-widget">
-    <property name="mailboxes">mailboxes</property>
-    <property name="button">select-mailbox</property>
-    <property name="list">mailbox-pane</property>
-    <property name="selection">mailbox-selection</property>
-  </object>
   <object class="MessageList" id="messages">
-    <property name="selection">message-selection</property>
     <columns>
       <!-- column-name message-id -->
       <column type="gchararray"/>
       <!-- column-name subject -->
       <column type="gchararray"/>
     </columns>
-  </object>
-  <object class="MessageWidget" id="messages-widget">
-    <property name="messages">messages</property>
-    <property name="message-view">message-view</property>
   </object>
   <object class="MailboxList" id="mailboxes">
     <columns>
@@ -28,7 +17,15 @@
       <column type="gchararray"/>
     </columns>
   </object>
-  <object class="GtkWindow" id="post-main-window">
+  <object class="PostWindow" id="post-main-window">
+    <property name="mailboxes">mailboxes</property>
+    <property name="mailbox-button">select-mailbox</property>
+    <property name="mailbox-list">mailbox-pane</property>
+    <property name="mailbox-selection">mailbox-selection</property>
+    <property name="messages">messages</property>
+    <property name="message-view">message-view</property>
+    <property name="message-selection">message-selection</property>
+
     <property name="can_focus">False</property>
     <property name="default_width">600</property>
     <property name="default_height">500</property>

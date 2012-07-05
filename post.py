@@ -68,24 +68,9 @@ class MailboxList(Gtk.TreeStore, Gtk.Buildable):
 
 class MessageList(Gtk.TreeStore, Gtk.Buildable):
     __gtype_name__ = 'MessageList'
-    selection = GObject.property(type=Gtk.TreeSelection)
 
     def __init__(self):
         self.mailbox = None
-
-    def do_parser_finished(self, builder):
-        self.selection.connect('changed', self._selection_changed)
-
-    def _selection_changed(self, selector):
-        # PLACEHOLDER
-        store, iter = selector.get_selected()
-        row = store[iter]
-        try:
-            message = load_message(row[0], self.mailbox)
-        except KeyError as e:
-            print(e)
-        else:
-            print('Message from <%s>: %s' % (message['From'], message['Subject']))
 
     def load_mailbox(self, path):
         import threader.adapt
@@ -118,52 +103,66 @@ class MessageList(Gtk.TreeStore, Gtk.Buildable):
         headers.save()
 
 
-class MailboxesWidget(GObject.GObject, Gtk.Buildable):
-    __gtype_name__ = 'MailboxesWidget'
-    selection_changed = signal()
+class PostWindow(Gtk.Window, Gtk.Buildable):
+    __gtype_name__ = 'PostWindow'
+
+    message_activated = signal()
+    mailbox_selected = signal()
+
+    messages = GObject.property(type=Gtk.TreeStore)
+    message_view = GObject.property(type=Gtk.TreeView)
+    message_selection = GObject.property(type=Gtk.TreeSelection)
+
     mailboxes = GObject.property(type=MailboxList)
-    button = GObject.property(type=Gtk.Button)
-    list = GObject.property(type=Gtk.Widget)
-    selection = GObject.property(type=Gtk.TreeSelection)
+    mailbox_button = GObject.property(type=Gtk.Button)
+    mailbox_list = GObject.property(type=Gtk.Widget)
+    mailbox_selection = GObject.property(type=Gtk.TreeSelection)
 
     def do_parser_finished(self, builder):
-        self.button.connect('clicked', self._button_clicked)
-        self.selection.connect('changed', self._selection_changed)
+        self.message_view.connect(
+            'row-activated', self._message_row_activated)
+        self.message_selection.connect(
+            'changed', self._message_selection_changed)
+        self.mailbox_button.connect(
+            'clicked', self._mailbox_button_clicked)
+        self.mailbox_selection.connect(
+            'changed', self._mailbox_selection_changed)
 
-    def _button_clicked(self, w):
-        on = self.toggle()
+    def _message_row_activated(self, treeview, path, col):
+        iter = self.messages.get_iter(path)
+        message_id = self.messages[iter][0]
+        self.message_activated(message_id=message_id)
+
+    def _message_selection_changed(self, selector):
+        # PLACEHOLDER
+        store, iter = selector.get_selected()
+        row = store[iter]
+        try:
+            message = load_message(row[0], self.mailbox)
+        except KeyError as e:
+            print(e)
+        else:
+            print('Message from <%s>: %s' % (message['From'], message['Subject']))
+
+    def _mailbox_button_clicked(self, w):
+        on = self.toggle_mailbox_list()
         if on and len(self.mailboxes) == 0:
             self.mailboxes.scan()
 
-    def _selection_changed(self, selector):
+    def _mailbox_selection_changed(self, selector):
         store, iter = selector.get_selected()
         row = store[iter]
         mailbox = row[0]
         if mailbox is not None:
-            self.selection_changed(mailbox=mailbox)
+            self.mailbox_selected(mailbox=mailbox)
 
-    def toggle(self):
-        state = not self.list.get_visible()
-        self.list.set_visible(state)
+    def toggle_mailbox_list(self):
+        state = not self.mailbox_list.get_visible()
+        self.mailbox_list.set_visible(state)
         return state
 
-    def hide(self):
-        self.list.hide()
-
-
-class MessageWidget(GObject.GObject, Gtk.Buildable):
-    __gtype_name__ = 'MessageWidget'
-    messages = GObject.property(type=Gtk.TreeStore)
-    message_view = GObject.property(type=Gtk.TreeView)
-    message_activated = signal()
-
-    def do_parser_finished(self, builder):
-        self.message_view.connect('row-activated', self._row_activated)
-
-    def _row_activated(self, treeview, path, col):
-        iter = self.messages.get_iter(path)
-        message_id = self.messages[iter][0]
-        self.message_activated(message_id=message_id)
+    def hide_mailbox_list(self):
+        self.mailbox_list.hide()
 
 
 class Post:
@@ -176,14 +175,13 @@ class Post:
         builder.add_from_file(self.ui)
 
         builder.get_object('mailboxes').search = mailbox_search
-        self.mailboxeswidget = builder.get_object('mailboxes-widget')
-        self.mailboxeswidget.selection_changed.subscribe(self._change_mailbox)
-        self.messageswidget = builder.get_object('messages-widget')
-        self.messageswidget.message_activated.subscribe(self._open_message)
+        self.post = builder.get_object('post-main-window')
+        self.post.mailbox_selected.subscribe(self._change_mailbox)
+        self.post.message_activated.subscribe(self._open_message)
         self.messages = builder.get_object('messages')
-        self.show_all = builder.get_object('post-main-window').show_all
+        self.show_all = self.post.show_all
 
-        builder.get_object('post-main-window').connect(
+        self.post.connect(
             'destroy', self.quit
         )
 
@@ -204,7 +202,7 @@ class Post:
 
     def init(self):
         if 'mailbox' in self.state:
-            self.mailboxeswidget.hide()
+            self.post.hide_mailbox_list()
             defer(self.messages.load_mailbox, self.state['mailbox'])
         else:
             self.mailboxes.scan()
@@ -213,10 +211,12 @@ class Post:
         self.save_state()
         Gtk.main_quit()
 
+    # TODO: part of PostWindow
     def _change_mailbox(self, mailbox=None):
         self.messages.load_mailbox(mailbox)
         self.state['mailbox'] = mailbox
 
+    # TODO: part of PostWindow
     def _open_message(self, message_id=None):
         print("hello %s!" % message_id)
 
