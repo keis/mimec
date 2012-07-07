@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from __future__ import print_function
 from gi.repository import GObject, Gtk
 import os
 import mailbox
@@ -17,7 +18,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-class App:
+class App(object):
     def __init__(self):
         self.config = {
             'mailboxes': ['~/Mail']
@@ -222,7 +223,7 @@ class PostWindow(Gtk.Window, Gtk.Buildable):
         self.mailbox_list.hide()
 
 
-class Post:
+class Post(object):
     ui = 'ui/post.glade'
 
     def __init__(self, mailbox_search):

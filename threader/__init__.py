@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+from __future__ import print_function
+
 import collections
 import functools
 
@@ -10,7 +12,7 @@ message = functools.partial(
 )
 
 
-class Container:
+class Container(object):
     def __init__(self, message):
         self.message = message
         self._parent = None
