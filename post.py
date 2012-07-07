@@ -10,23 +10,33 @@ from sig import signal
 
 
 XDG = xdg.Context('post')
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(levelname)s %(asctime)-15s %(message)s [%(funcName)s]'
+)
+logger = logging.getLogger(__name__)
+
 
 class App:
     def __init__(self):
+        self.config = {
+            'mailboxes': ['~/Mail']
+        }
+        self.state = {}
         self.load_config()
         self.load_state()
 
     def load_config(self):
         try:
             with open(XDG.config('config')) as f:
-                self.config = json.loads(f.read())
+                self.config.update(json.loads(f.read()))
         except IOError:
             logger.info('could not read config file')
 
     def load_state(self):
         try:
             with open(XDG.config('state'), 'r') as cfg:
-                self.state = json.loads(cfg.read())
+                self.state.update(json.loads(cfg.read()))
         except IOError:
             self.state = {}
             logger.info('could not open state file')
@@ -39,12 +49,6 @@ class App:
             logger.info('could not open state file')
 
 app = App()
-
-logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(levelname)s %(asctime)-15s %(message)s [%(funcName)s]'
-)
-logger = logging.getLogger(__name__)
 
 
 class Maildir(mcache.HeaderUpdaterMixin, mailbox.Maildir):
@@ -158,6 +162,13 @@ class PostWindow(Gtk.Window, Gtk.Buildable):
                 message['Subject']
             )))
 
+    def init(self):
+        if 'mailbox' in app.state:
+            self.post.hide_mailbox_list()
+            defer(self.messages.load_mailbox, app.state['mailbox'])
+        else:
+            self.mailboxes.scan()
+
     def do_parser_finished(self, builder):
         self.message_view.connect(
             'row-activated', self._message_row_activated)
@@ -229,11 +240,7 @@ class Post:
         )
 
     def init(self):
-        if 'mailbox' in app.state:
-            self.post.hide_mailbox_list()
-            defer(self.messages.load_mailbox, app.state['mailbox'])
-        else:
-            self.mailboxes.scan()
+        self.post.init()
 
     def quit(self, _window):
         app.save_state()
