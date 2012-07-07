@@ -32,28 +32,37 @@ class App(object):
             with open(XDG.config('config')) as f:
                 self.config.update(json.loads(f.read()))
         except IOError:
-            logger.info('could not read config file')
+            logger.info('could not read config file', exc_info=True)
 
     def load_state(self):
+        state_file = XDG.config('state')
         try:
-            with open(XDG.config('state'), 'r') as cfg:
+            with open(state_file, 'r') as cfg:
                 self.state.update(json.loads(cfg.read()))
         except IOError:
             self.state = {}
-            logger.info('could not open state file')
+            logger.info('could not open state file', exc_info=True)
 
     def save_state(self):
+        state_file = XDG.config('state')
+        state_dir = os.path.dirname(state_file)
         try:
-            with open(XDG.config('state'), 'w') as cfg:
+            if not os.path.exists(state_dir):
+                os.makedirs(state_dir)
+            with open(state_file, 'w') as cfg:
                 cfg.write(json.dumps(self.state))
         except IOError:
-            logger.info('could not open state file')
+            logger.info('could not open state file', exc_info=True)
 
 app = App()
 
 
 class Maildir(mcache.HeaderUpdaterMixin, mailbox.Maildir):
     header_cache = mcache.Cache(XDG.cache('header_cache'))
+    try:
+        header_cache.load()
+    except:
+        logger.warn('failed to load cache', exc_info=True)
 
 
 def load_message(message_id, maildir=None):
@@ -122,10 +131,6 @@ class MessageList(Gtk.TreeStore, Gtk.Buildable):
         logger.info('loading mailbox: %s', path)
         self.mailbox = Maildir(path, create=False)
         headers = mcache.StubFactory(self.mailbox, self.mailbox.header_cache)
-        try:
-            headers.load()
-        except:
-            logger.warn('failed to load cache', exc_info=True)
         self.clear()
         logger.info('threading %s messages', len(self.mailbox))
         messages = threader.thread(threader.adapt.read_maildir(headers))
@@ -135,7 +140,7 @@ class MessageList(Gtk.TreeStore, Gtk.Buildable):
             messages,
             None
         )
-        headers.save()
+        Maildir.header_cache.save()
 
 
 class PostWindow(Gtk.Window, Gtk.Buildable):
