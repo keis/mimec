@@ -4,11 +4,18 @@ from __future__ import print_function
 import collections
 import functools
 
+# Support cooperative multitasking when threading through gevent
+try:
+    import gevent
+    cooperate = gevent.sleep
+except ImportError:
+    cooperate = lambda: None
+
 
 message = functools.partial(
     collections.namedtuple('Message', ('id', 'subject', 'ref')),
     subject=None,
-    ref=[]
+    ref=()
 )
 
 
@@ -105,8 +112,12 @@ def thread(messages):
     table = Table()
     for message in messages:
         table.add_message(message)
+        cooperate()
+
+    result = []
     for c in table.root_set:
         nc, = c.prune()
         ## subject merge
         ## sorting
-        yield nc
+        result.append(nc)
+    return result
