@@ -170,7 +170,7 @@ class PostWindow(Gtk.Window, Gtk.Buildable):
 
     def init(self):
         if 'mailbox' in app.state:
-            self.post.hide_mailbox_list()
+            self.hide_mailbox_list()
             defer(self.messages.load_mailbox, app.state['mailbox'])
         else:
             self.mailboxes.scan()
