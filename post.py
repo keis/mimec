@@ -117,14 +117,24 @@ class MessageList(Gtk.TreeStore, Gtk.Buildable):
         self.mailbox = None
 
     def load_mailbox(self, path):
+        from email.header import decode_header
         import threader.adapt
         add = self.append
 
         def copy(messages, iter):
             for m in messages:
+                if m.message.subject:
+                    # NOTE: Reuses the normalized subject from threadr
+                    # might not want to do that
+                    parts = decode_header(m.message.subject)
+                    subject = ''.join(
+                        [h[0] if h[1] is None else h[0].decode(h[1]) for h in parts]
+                    )
+                else:
+                    subject = m.message.id
                 citer = add(iter, [
                     m.message.id,
-                    m.message.subject or m.message.id
+                    subject
                 ])
                 copy(m._children, citer)
 
