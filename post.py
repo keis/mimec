@@ -20,6 +20,51 @@ app = App('post', {
 })
 
 
+class Post(App):
+    def __init__(self):
+        App.__init__(self, 'post')
+
+    def create_post(self, mailbox_search):
+        ui = 'ui/post.glade'
+
+        builder = Gtk.Builder()
+        builder.add_from_file(ui)
+
+        builder.get_object('mailboxes').search = mailbox_search
+        self.post = builder.get_object('post-main-window')
+        self.messages = builder.get_object('messages')
+
+        self.post.connect(
+            'destroy', self.quit
+        )
+        self.post.message_activated.subscribe(
+            lambda message_id=None: print("hello %s!" % message_id))
+        self.post.message_selected.subscribe(
+            lambda message: print('Message from %s: %s' % (
+                message['From'],
+                message['Subject']
+            )))
+        self.post.mailbox_changed.subscribe(
+            lambda mailbox=None: self.state.__setitem__('mailbox', mailbox))
+
+        return self.post
+
+    def ready(self):
+        logger.info('initialising')
+        if 'mailbox' in self.state:
+            self.post.hide_mailbox_list()
+            defer(self.messages.load_mailbox, self.state['mailbox'])
+        else:
+            self.mailboxes.scan()
+
+    def quit(self, _window):
+        self.save_state()
+        Gtk.main_quit()
+
+
+app = Post()
+
+
 class Maildir(mcache.HeaderUpdaterMixin, mailbox.Maildir):
     header_cache = mcache.Cache(app.xdg.cache('header_cache'))
     try:
@@ -115,6 +160,7 @@ class PostWindow(Gtk.Window, Gtk.Buildable):
     message_activated = signal()
     message_selected = signal()
     mailbox_selected = signal()
+    mailbox_changed = signal()
 
     messages = GObject.property(type=Gtk.TreeStore)
     message_view = GObject.property(type=Gtk.TreeView)
@@ -174,7 +220,7 @@ class PostWindow(Gtk.Window, Gtk.Buildable):
 
     def _change_mailbox(self, mailbox=None):
         self.messages.load_mailbox(mailbox)
-        app.state['mailbox'] = mailbox
+        self.mailbox_changed(mailbox=mailbox)
 
     def toggle_mailbox_list(self):
         state = not self.mailbox_list.get_visible()
@@ -185,43 +231,14 @@ class PostWindow(Gtk.Window, Gtk.Buildable):
         self.mailbox_list.hide()
 
 
-class Post(object):
-    ui = 'ui/post.glade'
-
-    def __init__(self, mailbox_search):
-        self.mailbox_search = mailbox_search
-        builder = Gtk.Builder()
-        builder.add_from_file(self.ui)
-
-        builder.get_object('mailboxes').search = mailbox_search
-        self.post = builder.get_object('post-main-window')
-        self.messages = builder.get_object('messages')
-        self.show_all = self.post.show_all
-
-        self.post.connect(
-            'destroy', self.quit
-        )
-        self.post.message_activated.subscribe(lambda message_id=None: print("hello %s!" % message_id))
-        self.post.message_selected.subscribe(
-            lambda message: print('Message from %s: %s' % (
-                message['From'],
-                message['Subject']
-            )))
-
-    def init(self):
-        self.post.init()
-
-    def quit(self, _window):
-        app.save_state()
-        Gtk.main_quit()
-
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('mailbox', nargs='*')
     args = parser.parse_args()
 
-    p = Post(map(os.path.expanduser, args.mailbox or app.config['mailboxes']))
-    p.show_all()
-    defer(p.init)
+    p = Post()
+    post = app.create_post(map(os.path.expanduser, args.mailbox or app.config['mailboxes']))
+    post.show_all()
+    defer(app.ready)
     Gtk.main()

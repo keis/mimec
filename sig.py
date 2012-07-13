@@ -63,7 +63,7 @@ class signal(object):
             Two flowcontrol exceptions exist that may be raised by subscribers
              * `Disconnect`
                 A subscriber raising this exception will not be notified of
-				this event further
+                this event further
              * `StopPropagation`
                 Immediatly breaks the publish loop, no other subscribers will
                 be notified.
