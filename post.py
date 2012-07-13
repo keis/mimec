@@ -3,62 +3,25 @@ from __future__ import print_function
 from gi.repository import GObject, Gtk
 import os
 import mailbox
-import json
-import xdg
 import logging
 import mcache
 from sig import signal
+from app import App
+from util import defer
 
-
-XDG = xdg.Context('post')
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(levelname)s %(asctime)-15s %(message)s [%(funcName)s]'
 )
 logger = logging.getLogger(__name__)
 
-
-class App(object):
-    def __init__(self):
-        self.config = {
-            'mailboxes': ['~/Mail']
-        }
-        self.state = {}
-        self.load_config()
-        self.load_state()
-
-    def load_config(self):
-        try:
-            with open(XDG.config('config')) as f:
-                self.config.update(json.loads(f.read()))
-        except IOError:
-            logger.info('could not read config file', exc_info=True)
-
-    def load_state(self):
-        state_file = XDG.config('state')
-        try:
-            with open(state_file, 'r') as cfg:
-                self.state.update(json.loads(cfg.read()))
-        except IOError:
-            self.state = {}
-            logger.info('could not open state file', exc_info=True)
-
-    def save_state(self):
-        state_file = XDG.config('state')
-        state_dir = os.path.dirname(state_file)
-        try:
-            if not os.path.exists(state_dir):
-                os.makedirs(state_dir)
-            with open(state_file, 'w') as cfg:
-                cfg.write(json.dumps(self.state))
-        except IOError:
-            logger.info('could not open state file', exc_info=True)
-
-app = App()
+app = App('post', {
+    'mailboxes': ['~/Mail']
+})
 
 
 class Maildir(mcache.HeaderUpdaterMixin, mailbox.Maildir):
-    header_cache = mcache.Cache(XDG.cache('header_cache'))
+    header_cache = mcache.Cache(app.xdg.cache('header_cache'))
     try:
         header_cache.load()
     except:
@@ -76,13 +39,6 @@ def load_message(message_id, maildir=None):
             continue
         return maildir[key]
     raise KeyError('Message not found: %s' % message_id)
-
-
-def defer(fun, *args, **kwargs):
-    def _wrap():
-        fun(*args, **kwargs)
-        return False
-    GObject.idle_add(_wrap)
 
 
 class MailboxList(Gtk.TreeStore, Gtk.Buildable):
@@ -171,12 +127,6 @@ class PostWindow(Gtk.Window, Gtk.Buildable):
 
     def __init__(self):
         self.mailbox_selected.subscribe(self._change_mailbox)
-        self.message_activated.subscribe(self._open_message)
-        self.message_selected.subscribe(
-            lambda message: print('Message from %s: %s' % (
-                message['From'],
-                message['Subject']
-            )))
 
     def init(self):
         if 'mailbox' in app.state:
@@ -226,9 +176,6 @@ class PostWindow(Gtk.Window, Gtk.Buildable):
         self.messages.load_mailbox(mailbox)
         app.state['mailbox'] = mailbox
 
-    def _open_message(self, message_id=None):
-        print("hello %s!" % message_id)
-
     def toggle_mailbox_list(self):
         state = not self.mailbox_list.get_visible()
         self.mailbox_list.set_visible(state)
@@ -254,6 +201,12 @@ class Post(object):
         self.post.connect(
             'destroy', self.quit
         )
+        self.post.message_activated.subscribe(lambda message_id=None: print("hello %s!" % message_id))
+        self.post.message_selected.subscribe(
+            lambda message: print('Message from %s: %s' % (
+                message['From'],
+                message['Subject']
+            )))
 
     def init(self):
         self.post.init()
